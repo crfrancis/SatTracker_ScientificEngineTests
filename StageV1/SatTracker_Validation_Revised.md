@@ -274,6 +274,8 @@ For visual observing, a near-horizon event may be obscured by terrain, atmospher
 
 
 
+**[FIGURE BRIEF 9 — AOS/LOS timing distributions: representative 235 AOS/229 LOS in µs (max 0.279397 µs), targeted 81/81 in ms; retain 2.121251 ms AOS exceedance of 2 ms; B3b signed residuals/B3a matches.]**
+
 **[FIGURE BRIEF 10 — Two genuine short intervals: actual 7.49625444 s 0° grazing pass with 0.00142620778° peak margin versus 7.50060642 s above 10° within 488.564435 s parent pass; distinct scales and cached B3a curves.]**
 
 **[FIGURE BRIEF 11 — Duration against elevation margin: actual scatter of 310 complete B3a intervals (229 representative, 72 peak-adjacent, nine observer-tuned); exclude 14 clipped intervals, mark 27 targeted families × three alignments; V1 F13.]**
@@ -285,8 +287,6 @@ For the ordinary fixed-threshold cases in the supplementary investigation, the l
 The specially constructed shallow cases are harder. One geosynchronous AOS comparison differed by **2.121 milliseconds**, slightly exceeding the preselected 2 ms numerical criterion. Independent root searches showed that tiny floating-point differences in elevation can shift a crossing time by milliseconds when the elevation curve is almost tangent to the threshold. The discrepancy remains recorded; it was not removed by changing the criterion.
 
 The independent reviewers also checked that no previously found AOS, LOS or interval disappeared when the event-reporting corrections were introduced. Across the complete 196-search regression set—including mathematical controls and overlapping earlier cases—**672 crossings and 359 intervals** were preserved exactly.
-
-**[FIGURE BRIEF 9 — AOS/LOS timing distributions: representative 235 AOS/229 LOS in µs (max 0.279397 µs), targeted 81/81 in ms; retain 2.121251 ms AOS exceedance of 2 ms; B3b signed residuals/B3a matches.]**
 
 ### 6.4 When is maximum elevation reached?
 
