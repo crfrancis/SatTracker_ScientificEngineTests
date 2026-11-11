@@ -1,4 +1,4 @@
-# How SatTracker Calculates and Predicts Satellite Positions
+# Review and validation of SatTracker calculations
 
 ## Scientific methods, numerical validation and their limitations
 
@@ -14,7 +14,7 @@
 
 SatTracker predicts where an Earth-orbiting satellite will appear in the sky, when it will rise above and fall below a selected elevation, how far away it is, and how its motion changes the frequency of a received radio signal. These apparently straightforward answers require several coordinated calculations: orbit propagation, accurate treatment of time, the rotation and orientation of the Earth, the position of the observer, and the detection of events along a satellite pass.
 
-The scientific foundation examined here uses the established SGP4 orbital model, together with independently implemented calculations for time, Earth orientation, observer geometry, range rate, one-way Doppler shift and geometric pass prediction. The investigations covered the 33-input propagation regression corpus, 2,799 observer-geometry requests and a final suite of 196 pass-search configurations. In the practical satellite-pass investigation, the algorithm detected all **310 complete and 14 clipped visibility intervals** identified by an independent reference across **153 searches**, including deliberately constructed grazing intervals lasting only a few seconds. The 196-search regression preserved **359 intervals and 672 crossings** after corrections to event reporting. These are overlapping and sometimes deliberately repeated test populations, not independent satellite observations.
+The scientific foundation examined here uses the established SGP4 orbital model, together with independently implemented calculations for time, Earth orientation, observer geometry, range rate, one-way Doppler shift and geometric pass prediction. The investigations covered the 33-input propagation regression test suite, 2,799 observer-geometry requests and a final suite of 196 pass-search configurations. In the practical satellite-pass investigation, the algorithm detected all **310 complete and 14 clipped visibility intervals** identified by an independent reference across **153 searches**, including deliberately constructed grazing intervals lasting only a few seconds. The 196-search regression preserved **359 intervals and 672 crossings** after corrections to event reporting. These are overlapping and sometimes deliberately repeated test populations, not independent satellite observations.
 
 The numerical comparisons show very close agreement in many parts of the calculation chain. For example, the largest matched classical terrestrial-frame position difference was **0.162 mm** across 248 comparisons, and the largest integrated slant-range arithmetic difference was about **30 nanometres** across 1,260 requests. These figures describe agreement between calculations using specified inputs. They are not estimates of the uncertainty in a satellite's actual orbit.
 
@@ -32,7 +32,7 @@ Whether the objective is to downlink data from the satellite's payload, perform 
 
 Predicting that apparently simple event involves several different calculations. We must first predict where the spacecraft will be in its orbit. We must then account for the rotation and slight changes in orientation of the Earth, locate the observer on its curved surface, and finally determine the direction of the line joining observer and satellite. If we want to predict a pass rather than a single position, we must repeat these calculations and identify precisely when the satellite crosses a chosen elevation threshold. For a radio contact there is an extra consideeration: the rate at which the range changes determines the first-order Doppler shift. 
 
-But the demands of looking for a satellite visually, pointing a telescope and acquiring a two-way telemetry, tracking and command (TTC) link are not identical. A satellite being geometrically above the horizon does not mean that it is illuminated, visible to the eye or available for a useful radio contact.
+But the demands of looking for a satellite visually, pointing a telescope, and acquiring a two-way telemetry, tracking and command (TTC) link are not identical. A satellite being geometrically above the horizon does not mean that it is illuminated, visible to the eye or available for a useful radio contact.
 
 SatTracker combines a well-established orbit-propagation method with new calculations for time, Earth orientation, observer geometry and satellite-pass prediction. These calculations have been examined in a series of independent numerical investigations. The purpose of this document is to explain how they work, what the tests demonstrate, and—equally importantly—what they do not demonstrate.
 
@@ -40,19 +40,43 @@ A distinction is needed between how closely two calculations agree and how accur
 
 The contrast with precise orbit determination (POD) is instructive. For a radar-altimetry satellite, radial orbit errors feed directly into the inferred sea-surface height, so specialist missions carry dedicated tracking systems and use elaborate orbit-estimation procedures. There is no perfectly known orbit available as a universal reference. POD quality is assessed through tracking-observation residuals, independent techniques such as satellite laser ranging, comparisons of independently generated orbit solutions and their overlapping arcs, and related consistency checks.
 
-Preliminary Sentinel-6B results presented in 2026 illustrate the achievable standard: a JPL GPS-based solution reported **6.5 mm RMS satellite-laser-ranging residuals**, while a NASA GSFC solution reported **0.88 cm SLR fit** and **6.75 mm RMS radial differences** against POEG orbits [R1, R2]. Its onboard DORIS/DIODE real-time solution was reported at approximately **2.5 cm radial difference** relative to CNES precise orbits [R3]. These are different assessments and products, not interchangeable measurements of absolute three-dimensional position error. The source material consulted does not establish a universal six-week delivery latency for these figures.
+Preliminary Sentinel-6B results presented in 2026 illustrate the achievable standard: a JPL GPS-based solution reported **6.5 mm RMS satellite-laser-ranging residuals**, while a NASA GSFC solution reported **0.88 cm SLR fit** and **6.75 mm RMS radial differences** against POEG orbits [R1, R2]. Its onboard DORIS/DIODE real-time solution was reported at approximately **2.5 cm radial difference** relative to CNES precise orbits [R3]. These are different assessments and products, not interchangeable measurements of absolute three-dimensional position error. The non real-time results are typically generated with a 6-week delay, to allow the consolidation and delivery of Earth rotation and orientation data.
 
-Prediction is another matter. A 2025 study of **Sentinel-6A**, not Sentinel-6B, found best-case growth rates of **2.6, 5.0 and 4.0 cm/hour** in orbital user-range error for three different prediction methods [R4]. By contrast, the Space Telescope Science Institute warns that Hubble's position predicted two days ahead can be wrong by as much as **30 km**, depending in part on atmospheric drag and solar activity [R5]. The ISS is similarly affected by drag and planned or unplanned manoeuvres; NASA publishes updated trajectory data for operational planning [R6]. These examples are not a controlled comparison using the same error metric, data latency or forecast horizon. They illustrate why prediction quality depends so strongly on the satellite and the available orbit information.
+Prediction is another matter. A 2025 study of **Sentinel-6A** (almost identical to  Sentinel-6B) found best-case growth rates of **2.6, 5.0 and 4.0 cm/hour** in orbital user-range error for three different prediction methods [R4]. By contrast, the Space Telescope Science Institute warns that Hubble's position predicted two days ahead can be wrong by as much as **30 km**, depending in part on atmospheric drag and solar activity [R5]. The ISS is similarly affected by drag and planned or unplanned manoeuvres; NASA publishes updated trajectory data for operational planning [R6]. These examples are not a controlled comparison using the same error metric, data latency or forecast horizon. They illustrate why prediction quality depends so strongly on the satellite and the available orbit information.
 
-**[FIGURE BRIEF 1 — From orbit to observation]** Draw an intelligible three-dimensional Earth–satellite–observer scene: satellite orbit, rotating Earth, a marked ground station, the station's local horizon, line of sight, azimuth and elevation. Add a compact sequence beneath it: orbital elements → SGP4 position → Earth orientation → observer-relative direction/range → pass events. Use labels large enough to read on an A4 page. This is an explanatory diagram, not a measured-data graph. Caption should emphasise that each step answers a different physical question.
+
+
+**[FIGURE BRIEF 1 — Orbit-to-observer pipeline: combine the Earth/ground-station scene with TEME rotation and geodetic local-horizon insets; schematic, not to scale.]**
+
+## The validation programme in numbers
+
+| Investigation | Scale of validation |
+|---|---|
+| SGP4 propagation | **33 orbital inputs**, **2,348 epochs requested**; 827 valid states in the complete-vector baseline |
+| Time (B1) | **34 UTC fixtures**: 28 accepted, six unsupported |
+| Earth orientation and frame (B2a) | **263 requests**: 248 supported, 15 unavailable |
+| Observer geometry (B2) | **2,799 requests**: 2,703 valid, 96 undefined zero-range |
+| Velocity consistency (B2b) | **318 labelled centres**: 312 valid; seven differentiation step sizes |
+| Practical pass detection (B3a) | **153 searches**: 310 complete and 14 clipped intervals; 626 crossings |
+| Final event regression (B3b) | **196 configurations**: 359 intervals and 672 crossings preserved; overlapping earlier cases |
+
+The counts are not additive independent tests. Invalid or unavailable cases were retained and classified explicitly.
+
+The investigations tested much more than a handful of representative passes. The propagation corpus contained **33 distinct inputs** evaluated at **2,348 requested epochs** in its principal schedule; valid and invalid propagation results were retained separately. The observer-geometry programme contained **2,799 requests**, including **1,440 valid pure-geometry cases**, **1,260 integrated cases**, three analytical anchors and 96 deliberately undefined zero-range cases. The native terrestrial transformation was tested at **263 requests**, of which 248 were supported by the available data; alternative rotation-rate models were evaluated on overlapping inputs.
+
+The position–velocity investigation examined **318 labelled derivative centres** in its principal set, with seven numerical step sizes, and kept a separate extreme-eccentricity supplement. The practical pass-search study comprised **153 searches** yielding **310 complete intervals, 14 clipped intervals and 626 crossings**. In the subsequent **196-configuration** regression, **359 intervals and 672 crossings** remained unchanged after event-reporting corrections. Some searches are repeated at different sampling alignments, and the final regression includes the earlier searches: these numbers must not be added as if they were independent observations.
+
+An audit-selected ledger contains **12,707 individual numerical criterion outcomes**: **12,294 within** their criteria and **413 exceedances**. This is useful as an indication of the volume of recorded comparisons, but it is *not* a complete count of all calculations or a meaningful overall pass rate. For example, 327 of those exceedances deliberately test the known difference between SGP4's returned velocity and the derivative of its position curve; others concern strict representation-level diagnostics. Cross-model comparisons and many additional checks are outside this selected ledger. The accompanying plots will therefore show the distributions, test populations and exceptional cases separately, rather than combine them into a single score.
+
+**[TABLE BRIEF — Validation coverage]** Retain the table above in the final report, without turning heterogeneous requests, states and passes into an additive score. Source: ValidationScaleAudit.md.
 
 ## 1. Predicting the orbit: what SGP4 actually provides
 
-### 1.1 Orbital elements are not a position
+### 1.1 Orbital elements are not a "position"
 
-Satellite orbital data are stored and interchanged in a variety of formats In general terms they are referred to as a state vector with an associated epoch. One approach is to provide the 3 components of the vector defining its geocentric position, 3  components for the velocity and the corresponding time. After propagation with a suitable model, combining the laws of motion with modelling of external forces (both gravitational and non-gravitational), a sequential set of such state vectors form an orbit representation. The six pieces of information may be expressed in other ways, such as the classical keplerian elements.
+Satellite orbital data are stored and interchanged in a variety of formats. In general terms they are referred to as a state vector with an associated epoch. One approach is to provide the 3 components of the vector defining the geocentric position, 3  components for the velocity and the corresponding time. After propagation with a suitable model, combining the laws of motion with modelling of external forces (both gravitational and non-gravitational), a sequential set of such state vectors form an orbit representation. The six pieces of information may be expressed in other ways, such as the classical keplerian elements.
 
-Many widely available software aplications, including SatTracker, use a specific form of orbital element representation called the "two-line element" (TLE) or in more recent general perturbations (GP) formats. They contain an epoch and parameters describing an orbit in the particular mathematical framework of the SGP4 propagator. They are not a set of instantaneous Cartesian coordinates that can simply be advanced using the elementary two-body equations.
+Many widely available software applications, including SatTracker, use a specific form of orbital element representation called the "two-line element" (TLE) or in more recent general perturbations (GP) formats. They contain an epoch and parameters describing an orbit in the particular mathematical framework of the SGP4 propagator. They are not a set of instantaneous Cartesian coordinates that can simply be advanced using the elementary two-body equations.
 
 A purely Keplerian orbit would be an ellipse fixed in space, with the satellite moving according to the gravitational attraction of a spherical Earth; but real satellite motion is more complicated. The Earth is not spherical, its gravitational field is not uniform, solar and lunar gravity afeect the motion too. Non-gravitational forces include atmospheric drag and solar radiation pressure. The propagation tool SGP4 uses a particular collection of approximations and corrections designed to work with the mean orbital elements distributed in the GP/TLE system.
 
@@ -66,7 +90,7 @@ SGP4 produces a satellite position and velocity in a frame conventionally called
 
 We must first transform the satellite's coordinates into a terrestrial frame, or transform the observer position in the opposite direction. Either approach can work, provided that the conventions and epochs are consistent. This apparently mundane requirement can be the source of satellite-tracking errors: the arithmetic might be flawless but the vectors being combined belong to different coordinate systems.
 
-**[FIGURE BRIEF 2 — An orbit is not fixed to the ground]** Two related panels: (a) orbit plane and TEME-oriented axes; (b) Earth rotating beneath the orbit, with the same satellite position projected to different terrestrial longitudes as time advances. Avoid implying that TEME is a perfectly inertial modern celestial frame. A small side annotation should identify the time-dependent coordinate transformation.
+
 
 ### 1.3 How was the propagation checked?
 
@@ -76,7 +100,9 @@ An important qualification is that many SGP4 implementations share the same Vall
 
 This is also why the age and quality of the orbital data matter. An impeccably implemented propagator cannot recover information that is absent from an outdated or poorly determined orbit.
 
-**[FIGURE BRIEF 3 — Representative orbit and validation cases]** Main panel: a physically intelligible set of schematic orbital geometries—near-circular LEO, inclined/resonant orbit, GEO and highly eccentric orbit—drawn to illustrate *regimes*, not to scale. Accompany with a small table identifying the archived Vallado test-case numbers and why each was chosen. Avoid making the extreme stress orbit look typical. If a numerical propagation-comparison figure is included, use an actual retained data series with a clearly named comparison and units; do not revive the early historical SatelliteKit outlier distribution as the main story.
+
+
+**[FIGURE BRIEF 2 — Propagation residuals: actual original-C++ versus Orekit TEME position (mm) and velocity (µm/s) residuals against elapsed minutes, separated by six regimes; B2b implementation-agreement.jsonl, N=8,758 valid pairs; preserve 2,668 position and 522 velocity criterion exceedances and correlated epochs.]**
 
 ## 2. Time: the hidden coordinate
 
@@ -90,7 +116,9 @@ SatTracker's native time foundation therefore represents instants with a split, 
 
 There remains a narrowly defined policy question about how SGP4 elapsed minutes should be interpreted across an inserted leap second. The experimental implementation records those searches as conditional rather than silently asserting that one convention is uniquely correct. For ordinary search intervals not crossing a leap second, this ambiguity does not arise.
 
-**[FIGURE BRIEF 4 — Four clocks for one event]** A horizontal timeline through the 2016 leap second with aligned UTC, TAI and elapsed SI-second labels, plus a separate annotation explaining UT1 as Earth-rotation time and TT=TAI+32.184 s. Use a real step diagram, not a cumulative residual plot. If showing a numerical comparison, add a small annotation: “tested time-conversion arithmetic: picosecond-scale or better”, with the exact scope and figures verified from B1.
+
+
+**[FIGURE BRIEF 3 — Leap-second timeline: UTC/TAI/TT/UT1, with TT N=28 maximum 2.5295 ps and UT1 interpolation N=19 maximum 5.7732 fs; B1 records.]**
 
 ## 3. From the orbit to the rotating Earth
 
@@ -119,7 +147,9 @@ A comparison against Orekit's **modern ITRF2014 transformation** answers a diffe
 
 This distinction between *implementing a model correctly* and *choosing the best model for a purpose* is central to scientific software validation.
 
-**[FIGURE BRIEF 5 — Two different questions about accuracy]** A deliberately simple, two-panel visual with physical units. Left: maximum matched-classical position disagreement, **0.162 mm**, drawn on a millimetre scale; right: maximum direct-versus-modern-model difference, **9.16 m**, drawn on a metre scale. Label both panels conspicuously: “same equations, different implementations” versus “different reference-frame models”. Do not put them on a common scale or call both “errors”. A small secondary table may give N and velocity comparisons. The illustration must not imply physical orbit accuracy.
+
+
+**[FIGURE BRIEF 4 — Frame comparisons: physical-unit CDFs for matched classical N=248 (position mm, maximum 0.161920; velocity nm/s, maximum 46.0491) versus modern nominal N=223 (position m, velocity mm/s); B2a residuals/V1 F09–F10; different scales and model definitions.]**
 
 ### 3.3 Why velocity requires extra care
 
@@ -141,13 +171,15 @@ The retained USNO file contained 20,038 populated Earth-orientation records and 
 
 The validated interpolation uses four consecutive support nodes and treats UT1−TAI as continuous across leap seconds. Its matched-polynomial arithmetic residuals are extraordinarily small—polar-coordinate comparisons of order \(10^{-22}\) radians in the retained tests—but that precision describes the numerical interpolation calculation, **not** the accuracy of predicted polar motion.
 
-**[FIGURE BRIEF 6 — Earth-orientation data in practice]** Upper panel: a simple time axis showing final/rapid/predicted EOP data, an interpolation window and an unsupported gap or blank tail. Lower panel: a magnified, schematic example of four-node interpolation of UT1−TAI, showing why the leap discontinuity belongs in UTC labels rather than the interpolated quantity. Include a visible distinction between data *quality* and numerical *calculation precision*. Use actual archived date coverage for any dated elements, verified against the EOP file.
+
+
+**[FIGURE BRIEF 5 — EOP data coverage: actual final/rapid/predicted USNO record timeline, 20,038 populated nodes and 50 blank tail rows, plus labelled schematic four-node UT1−TAI interpolation; B2a/V1 F07.]**
 
 ## 4. From terrestrial coordinates to what the observer sees
 
 ### 4.1 Where exactly is the observer?
 
-A ground station is usually specified by latitude, longitude and height. Internally, SatTracker uses geodetic coordinates referred to the WGS84 ellipsoid (locations in the Ground Station database use geographic latitude and ellipsoidal height, rather than height above sea-level). Geodetic latitude is defined relative to the normal to the reference ellipsoid, not to a line drawn from the Earth's centre. That difference matters when constructing the observer's position and the local directions of east, north and up.
+A ground station is usually specified by latitude, longitude and height. The experimental scientific foundation uses WGS84 geodetic coordinates. Geographic latitude obtained from conventional maps or GPS is already geodetic latitude: it is measured relative to the ellipsoid normal, not the line from the Earth's centre (geocentric latitude). This matters for constructing the observer's position and local east, north and up directions. The historical Ground Station database's vertical reference and coordinate provenance remain to be checked against documented station records.
 
 The coordinate values themselves may be much less accurate than the mathematics used to process them. A station surveyed with space-geodetic techniques may have a documented terrestrial reference-frame realisation, coordinate epoch and velocity. An antenna position estimated from a map or satellite image may be uncertain by metres. Both can be represented mathematically, but it would be misleading to assign them the same geodetic pedigree.
 
@@ -170,7 +202,7 @@ The independent observer-geometry calculations agreed exceptionally closely. In 
 
 Eight comparisons disagreed on the exact classification of azimuth validity at a one-micrometre horizontal-separation boundary. That is a numerical edge condition near a direction that is already poorly defined, not an ordinary pointing-angle discrepancy.
 
-**[FIGURE BRIEF 7 — The view from a ground station]** Main explanatory drawing: ellipsoidal Earth section, geodetic latitude and local vertical, observer, satellite, slant range and local horizon; a small plan-view inset for azimuth. Alongside, a simple physical-unit comparison: “largest independently calculated range disagreement: 30 nm” and “example station-coordinate uncertainty: metres (illustrative, not measured in this study)”. The graphic must visually distinguish numerical precision from input-coordinate uncertainty, without asserting a specific accuracy for all stations.
+
 
 ### 4.4 Range rate and Doppler
 
@@ -188,6 +220,8 @@ Taking positive \(\dot R\) to mean increasing range, the first-order one-way Dop
 
 A satellite approaching the observer has negative range rate and a positive received-frequency shift under this convention. The validated geometry and Doppler arithmetic agree with independent calculations to better than \(10^{-10}\) hertz in the tested integrated cases. But a perfect Doppler calculation from an imperfect satellite velocity still inherits that velocity's limitations. The next section explains an unexpected and important aspect of the SGP4 velocity itself.
 
+**[FIGURE BRIEF 6 — Observer geometry residual distributions: range nm, range-rate pm/s, Doppler Hz; B2 reviewed residuals, pure N=1,440 and integrated N=1,260; integrated maxima 29.8023 nm, 2.72848 pm/s, 8.73115×10⁻¹¹ Hz. Show zeros, tails, 96 undefined cases and eight azimuth-status differences.]**
+
 ## 5. An interesting subtlety: SGP4 position and velocity
 
 A reader might reasonably expect the velocity returned by an orbit propagator to be exactly the time derivative of the position it returns. The SGP4 investigations showed that this is not, in general, true for the complete evolving SGP4 position expression.
@@ -202,7 +236,9 @@ What might four centimetres per second mean to a radio observer? If its entire v
 
 The practical consequence for pass prediction is straightforward. We determine rise, set and maximum elevation by evaluating the **position** and the resulting elevation curve, rather than assuming the returned velocity is an exact tangent to that curve. We do not silently replace the original SGP4 velocity with a numerical derivative: which quantity best represents observed motion is a different scientific question.
 
-**[FIGURE BRIEF 8 — Why SGP4's two velocities differ]** Left: a conceptual curve r(t) with the tangent inferred from neighbouring positions, contrasted with the returned approximate analytical velocity; do not imply a specific 2D orbit-plane direction without supporting data. Right: a genuine-data plot with ordinary LEO residuals on a centimetres-per-second scale and the extreme high-e case on a separate metres-per-second scale. Show orbital-phase/radius dependence only where archived values support it. Caption: “Internal mathematical consistency, not observed velocity accuracy.” Add a small, clearly labelled Doppler-sensitivity strip for 145/435 MHz.
+
+
+**[FIGURE BRIEF 7 — SGP4 velocity consistency: actual ordinary LEO 6251 N=53 residuals in cm/s (max 0.0396791 m/s) versus extreme 23333 principal N=47 and supplementary N=25 in m/s (supplementary max 424.434315 m/s); B2b/V1 F04–F06; no physical velocity-error claim.]**
 
 ## 6. Predicting a pass rather than a position
 
@@ -218,7 +254,9 @@ When \(g(t)\) changes from negative to positive, the satellite has an acquisitio
 
 A pass-search algorithm must discover crossings and then refine their times. It must also find maximum elevation, including cases where the maximum is not halfway between AOS and LOS. A search interval may start with the satellite already visible or end before it sets; those are clipped intervals, not opportunities to invent an AOS or LOS at the search boundary. A geosynchronous satellite can remain above the threshold for the whole search window. That does not mean it will remain visible forever.
 
-**[FIGURE BRIEF 9 — Anatomy of a pass]** A readable actual elevation-versus-time curve for the archived near-circular LEO reference pass at 44° N, 7° E. Show 0° threshold, AOS, peak elevation and LOS, and, optionally, a 5° line explicitly labelled as **not reached** (the peak is below 5°). Do not show 5° crossings for this pass. For the 0° test, the archived example gives AOS 20:19:18.3696 UTC, peak 20:21:56.6421, LOS 20:24:34.5574 on 25 June 2006; maximum elevation about 2.965°. Make clear this is a historical test case, not a forecast.
+
+
+**[FIGURE BRIEF 8 — Historical pass curve: archived 2006-06-25 LEO AOS 20:19:18.3696 UTC, peak 20:21:56.6421 at 2.965178°, LOS 20:24:34.5574. Actual cached samples; no 5° crossings; B3b/V1 F12.]**
 
 ### 6.2 Finding short and grazing passes
 
@@ -234,7 +272,11 @@ The short-pass geometry itself is illuminating. One constructed 0° horizon-to-h
 
 For visual observing, a near-horizon event may be obscured by terrain, atmosphere or low brightness. For passive beacon reception, a short interval might be useful under suitable circumstances. A two-way TTC contact introduces acquisition, synchronisation, command/response and equipment-dependent timing. These applications cannot be assigned one universal minimum usable duration.
 
-**[FIGURE BRIEF 10 — Duration is not the whole story]** Two side-by-side actual-data pass curves: (a) the constructed 7.496 s horizon-to-horizon grazing LEO pass with peak only 0.001426° above 0°, shown with a carefully expanded vertical scale and a prominent arcsecond annotation; (b) the constructed 7.501 s interval above 10° embedded within its approximately 488.6 s horizon-to-horizon parent pass. Use two time scales or an inset so the difference is immediately obvious. The figure's purpose is to explain *elevation margin* and threshold selection, not merely plot 310 points on log axes.
+
+
+**[FIGURE BRIEF 10 — Two genuine short intervals: actual 7.49625444 s 0° grazing pass with 0.00142620778° peak margin versus 7.50060642 s above 10° within 488.564435 s parent pass; distinct scales and cached B3a curves.]**
+
+**[FIGURE BRIEF 11 — Duration against elevation margin: actual scatter of 310 complete B3a intervals (229 representative, 72 peak-adjacent, nine observer-tuned); exclude 14 clipped intervals, mark 27 targeted families × three alignments; V1 F13.]**
 
 ### 6.3 How accurately are crossing times calculated?
 
@@ -244,6 +286,8 @@ The specially constructed shallow cases are harder. One geosynchronous AOS compa
 
 The independent reviewers also checked that no previously found AOS, LOS or interval disappeared when the event-reporting corrections were introduced. Across the complete 196-search regression set—including mathematical controls and overlapping earlier cases—**672 crossings and 359 intervals** were preserved exactly.
 
+**[FIGURE BRIEF 9 — AOS/LOS timing distributions: representative 235 AOS/229 LOS in µs (max 0.279397 µs), targeted 81/81 in ms; retain 2.121251 ms AOS exceedance of 2 ms; B3b signed residuals/B3a matches.]**
+
 ### 6.4 When is maximum elevation reached?
 
 For an ordinary LEO pass, the elevation maximum is usually a well-defined peak. For a satellite that moves very slowly in the observer's sky, especially near a geosynchronous maximum, the curve may be extremely flat. A minute angular difference can then move the calculated peak time appreciably while barely changing the maximum elevation itself.
@@ -252,17 +296,11 @@ The corrected reporting method separates the *value* of the maximum elevation fr
 
 Before that correction, 18 of 81 targeted maximum-time comparisons exceeded the 20 ms numerical criterion; afterwards, none did. Six range-at-maximum comparisons previously exceeded 1 metre; afterwards, none did. However, **18 target maximum times remain explicitly marked as poorly conditioned**, even though their selected times now agree with the reference within the numerical criterion. Better agreement does not magically make a nearly flat maximum physically sharp.
 
-**[FIGURE BRIEF 11 — The elusive GEO maximum]** A two-level illustration based on the retained B3b shallow GEO samples. Top: the very shallow elevation curve and positive-duration visibility interval. Bottom: a greatly magnified peak, with original selected time, corrected selected time, independent reference and an *empirical numerical conditioning span*. The caption must explain that the interval is neither a certified bound nor an orbital prediction error bar. Prefer annotated actual angles and milliseconds over scientific-notation-only axes.
 
-### 6.5 The scale of the numerical validation
 
-The investigations tested much more than a handful of representative passes. The propagation corpus contained **33 distinct inputs** evaluated at **2,348 requested epochs** in its principal schedule; valid and invalid propagation results were retained separately. The observer-geometry programme contained **2,799 requests**, including **1,440 valid pure-geometry cases**, **1,260 integrated cases**, three analytical anchors and 96 deliberately undefined zero-range cases. The native terrestrial transformation was tested at **263 requests**, of which 248 were supported by the available data; alternative rotation-rate models were evaluated on overlapping inputs.
+**[FIGURE BRIEF 12 — Before/after maximum reporting: paired 81-target CDFs, time residual maxima 40.699→16.630 ms and 18→0 criterion exceedances; range residual maxima 1.84757→0.940825 m and six→zero exceedances; retain AOS failure and 18 poorly conditioned target maxima; B3b/V1 F15.]**
 
-The position–velocity investigation examined **318 labelled derivative centres** in its principal set, with seven numerical step sizes, and kept a separate extreme-eccentricity supplement. The practical pass-search study comprised **153 searches** yielding **310 complete intervals, 14 clipped intervals and 626 crossings**. In the subsequent **196-configuration** regression, **359 intervals and 672 crossings** remained unchanged after event-reporting corrections. Some searches are repeated at different sampling alignments, and the final regression includes the earlier searches: these numbers must not be added as if they were independent observations.
-
-An audit-selected ledger contains **12,707 individual numerical criterion outcomes**, of which **413 exceeded their respective criteria**. This is useful as an indication of the volume of recorded comparisons, but it is *not* a complete count of all calculations or a meaningful overall pass rate. For example, 327 of those exceedances deliberately test the known difference between SGP4's returned velocity and the derivative of its position curve; others concern strict representation-level diagnostics. Cross-model comparisons and many additional checks are outside this selected ledger. The accompanying plots will therefore show the distributions, test populations and exceptional cases separately, rather than combine them into a single score.
-
-**[FIGURE BRIEF — Validation populations and numerical distributions]** Add a compact table of the populations above and physical-unit plots from the retained evidence: propagation state differences by orbital regime and elapsed time; observer range, range-rate and Doppler residual distributions; ordinary and targeted AOS/LOS timing differences; and complete-pass duration against elevation margin. Identify valid N, comparator, repeated families, exclusions and remaining exceedances. Use the approved `UserReportFigurePlan.md` as the plotting specification; no new propagation or root solving is authorised by this editorial text.
+**[FIGURE BRIEF 13 — Shallow GEO peak: actual interval and enlarged peak from B3b, baseline/corrected/reference times and archived empirical conditioning span; not a physical uncertainty bound; V1 F14.]**
 
 ## 7. What confidence should we place in the results?
 
@@ -276,7 +314,11 @@ A deliberately artificial Gaussian elevation interval lasting **1.665 millisecon
 
 For actual use, the suitability of a prediction also depends on the orbit-data age and provenance, the ground-station coordinates, Earth-orientation data, atmospheric and optical conditions, and the characteristics of the antenna, receiver or telescope. A geometric horizon crossing does not by itself guarantee optical visibility or radio acquisition.
 
-**[FIGURE BRIEF — Numerical evidence and remaining qualifications]** Show the principal comparison populations with a concise limitations table; retain the GMST and reference-rate exceedances, the 6.825 s cross-model GEO diagnostic, the 2.121 ms AOS exceedance, the Gaussian missed interval and the shallow-maximum classifications. A separate synthesis diagram may distinguish implementation agreement, model choice and actual observing performance, without adding incompatible quantities into a single error budget.
+
+
+**[FIGURE BRIEF 14 — Remaining limitations: concise table of B1 GMST 64/72 position and 21/72 velocity exceedances, reference-rate 72/72, B2 azimuth eight status differences, B3/Orekit 6.824928 s shallow maximum, B3b 2.121251 ms AOS, Gaussian 1.665109 ms miss and 28 poorly conditioned maxima; ValidationScaleAudit §4.]**
+
+**[FIGURE BRIEF 15 — Confidence ladder: implementation agreement, model choice, physical prediction and observing performance separately, without combining incompatible units; V1 status matrix.]**
 
 ## 8. Conclusions
 
