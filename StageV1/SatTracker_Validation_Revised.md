@@ -324,7 +324,7 @@ A synthetic arithmetic kernel demonstrated substantial GPU throughput at large b
 
 For a selected set of 1,000 real catalogue objects at four element ages, the compensated variant reduced the **95th-percentile wide-view pixel displacement** from approximately **0.259 to 0.0261 pixels**, and the maximum from **1.65 to 0.139 pixels**. The improvement is substantial within that test population, but the results cannot be generalised to every orbit or viewing geometry. The archived CelesTrak snapshot contained **16,896 real entries**; the larger 100,000-object workloads also included explicitly synthetic variants.
 
-**[FIGURE BRIEF 16 — Numerical precision and visual consequence]** Two linked panels. Left: show A3b full-float and double-initialised/float-propagated position-difference distributions in metres or kilometres, distinguishing ordinary from stress cases and marking the separate 55.07493 km and 48.49945 km maxima. Right: use A3c retained 1,000-real-object/four-age samples to compare uncompensated and compensated GPU pixel-displacement distributions, including p95 0.259→0.0261 px and maximum 1.65→0.1386 px. Different populations and units must not be merged. Sources: A3b/A3c results and QA; extract archived samples only.
+**[FIGURE BRIEF 14 — Numerical precision and visual consequence]** Two linked panels. Left: show A3b full-float and double-initialised/float-propagated position-difference distributions in metres or kilometres, distinguishing ordinary from stress cases and marking the separate 55.07493 km and 48.49945 km maxima. Right: use A3c retained 1,000-real-object/four-age samples to compare uncompensated and compensated GPU pixel-displacement distributions, including p95 0.259→0.0261 px and maximum 1.65→0.1386 px. Different populations and units must not be merged. Sources: A3b/A3c results and QA; extract archived samples only.
 
 ### 7.2 Which rendering architecture works best?
 
@@ -341,7 +341,7 @@ The complete D3 presented matrix retained **9,480 draws**, of which **9,475 had 
 | 10,000 objects, 60 Hz: median draw-work | 1.915 ms | 6.076 ms | 3.459 ms |
 | 100,000 objects, 60 Hz: median draw-work | 4.033 ms | 17.336 ms | 10.305 ms |
 
-**[FIGURE BRIEF 17 — What it costs to draw a catalogue]** Grouped physical-unit bar/dot chart of the D3 10k and 100k 60 Hz *presented* draw-work medians for compute, vertex-quads and CPU4, with the actual measured frame-cadence and presentation-latency observations separately annotated. A small schematic should explain reusable compute states versus per-corner repeated vertex propagation. Include the 9,480/9,475 presentation accounting, excluded pacing trials and zero-time callbacks. Source: StageD3Results, StageD3QA and retained matched workload; do not confuse D2 offscreen times with D3 presented results.
+**[FIGURE BRIEF 15 — What it costs to draw a catalogue]** Grouped physical-unit bar/dot chart of the D3 10k and 100k 60 Hz *presented* draw-work medians for compute, vertex-quads and CPU4, with the actual measured frame-cadence and presentation-latency observations separately annotated. A small schematic should explain reusable compute states versus per-corner repeated vertex propagation. Include the 9,480/9,475 presentation accounting, excluded pacing trials and zero-time callbacks. Source: StageD3Results, StageD3QA and retained matched workload; do not confuse D2 offscreen times with D3 presented results.
 
 ### 7.3 Does the rendered catalogue appear in the right place?
 
@@ -355,7 +355,7 @@ Some visibility-only policies can miss an object clipped by the GPU but visible 
 
 The D4 comparisons used a common simplified Earth-rotation convention (GMST with UTC approximating UT1, without the later native polar-motion/EOP transformation). That was suitable for isolating differences between display implementations, but it does **not** validate a future shader pipeline incorporating the newer B2a terrestrial-frame foundation. The D4 audit also rejected an original edge fixture with a duplicated camera offset; only the corrected edge evidence is admissible. Finally, measured frame-to-frame numerical jitter is not, by itself, a measurement of perceptible flicker.
 
-**[FIGURE BRIEF 18 — Pixel accuracy and fallback limits]** Use actual corrected D4 shader-versus-CPU pixel-displacement distributions, with current-snapshot and age-grid narrow-view populations on separate axes/panels. Show p99 0.0280428 px and maximum 0.400259 px for the 1,072-pair current tracked-10° sample, and 2.16178 px age-grid maximum; plot extreme cases separately to preserve 40.3103 px and larger tails. Add a compact fallback confusion/count table at the exploratory 0.5 px threshold: 7,392 events, selection-only 401 false negatives, regime-based B zero sampled false negatives, age/perigee D six. Include jointly visible versus union/clipped definitions, Float projection floor, corrected-edge provenance and unmeasured dynamic costs. Source: StageD4Results, StageD4QA and VisualFallbackPolicy; no new shader calculations.
+**[FIGURE BRIEF 16 — Pixel accuracy and fallback limits]** Use actual corrected D4 shader-versus-CPU pixel-displacement distributions, with current-snapshot and age-grid narrow-view populations on separate axes/panels. Show p99 0.0280428 px and maximum 0.400259 px for the 1,072-pair current tracked-10° sample, and 2.16178 px age-grid maximum; plot extreme cases separately to preserve 40.3103 px and larger tails. Add a compact fallback confusion/count table at the exploratory 0.5 px threshold: 7,392 events, selection-only 401 false negatives, regime-based B zero sampled false negatives, age/perigee D six. Include jointly visible versus union/clipped definitions, Float projection floor, corrected-edge provenance and unmeasured dynamic costs. Source: StageD4Results, StageD4QA and VisualFallbackPolicy; no new shader calculations.
 
 ### 7.4 Reduced-rate interpolation: useful but conditional
 
@@ -367,7 +367,7 @@ The Metal work progressed from arithmetic feasibility to actual rendering archit
 
 The evidence supports a **CPU-authoritative scientific path with optional compensated Metal catalogue rendering** as a credible design candidate. Reusable compute states performed particularly well in the tested multi-consumer sprite-and-view workload, but an all-CPU path also remains viable. The final pixel tolerance, dynamic fallback rules, concurrency and buffer ownership, application-level input-to-photon responsiveness, and integration with the B2a Earth-orientation model all remain unselected or unvalidated. No production Swift application has yet passed an end-to-end catalogue-rendering acceptance programme.
 
-**[FIGURE BRIEF 19 — Evidence ladder for Metal rendering]** A compact diagram showing the progression A3b numerical precision → A3c compensated approximate catalogue → D1 architecture → D2 offscreen pacing → D3 presented sky/globe views → D4 visual accuracy/fallback. Give each stage its actual measured output and its explicit limitation; mark proposed production integration as unvalidated. Source: MASTER_INDEX.md, TECHNICAL_OVERVIEW.md and individual stage QA reports.
+**[FIGURE BRIEF 17 — Evidence ladder for Metal rendering]** A compact diagram showing the progression A3b numerical precision → A3c compensated approximate catalogue → D1 architecture → D2 offscreen pacing → D3 presented sky/globe views → D4 visual accuracy/fallback. Give each stage its actual measured output and its explicit limitation; mark proposed production integration as unvalidated. Source: MASTER_INDEX.md, TECHNICAL_OVERVIEW.md and individual stage QA reports.
 
 ## 8. What confidence should we place in the results?
 
@@ -383,9 +383,9 @@ For actual use, the suitability of a prediction also depends on the orbit-data a
 
 
 
-**[FIGURE BRIEF 14 — Remaining limitations: concise table of B1 GMST 64/72 position and 21/72 velocity exceedances, reference-rate 72/72, B2 azimuth eight status differences, B3/Orekit 6.824928 s shallow maximum, B3b 2.121251 ms AOS, Gaussian 1.665109 ms miss and 28 poorly conditioned maxima; ValidationScaleAudit §4.]**
+**[FIGURE BRIEF 18 — Remaining limitations: concise table of B1 GMST 64/72 position and 21/72 velocity exceedances, reference-rate 72/72, B2 azimuth eight status differences, B3/Orekit 6.824928 s shallow maximum, B3b 2.121251 ms AOS, Gaussian 1.665109 ms miss and 28 poorly conditioned maxima; ValidationScaleAudit §4.]**
 
-**[FIGURE BRIEF 15 — Confidence ladder: implementation agreement, model choice, physical prediction and observing performance separately, without combining incompatible units; V1 status matrix.]**
+**[FIGURE BRIEF 19 — Confidence ladder: implementation agreement, model choice, physical prediction and observing performance separately, without combining incompatible units; V1 status matrix.]**
 
 ## 9. Conclusions
 
@@ -428,7 +428,7 @@ The resulting scientific foundation has a documented chain of calculations, repr
 
 ### Numerical evidence to verify before typesetting
 
-For the new graphics section, cross-check A3b/A3c and D1–D4 against their stage reports and independent QA before publication. Use only D4 edge-corrected fixtures; distinguish draw-work from actual presentation latency and independent objects from repeated view/epoch events. Figures 16–19 are editorial specifications, not generated results. No new scientific propagation or rendering experiment is authorised by this manuscript.
+For the new graphics section, cross-check A3b/A3c and D1–D4 against their stage reports and independent QA before publication. Use only D4 edge-corrected fixtures; distinguish draw-work from actual presentation latency and independent objects from repeated view/epoch events. Figures 14–17 are editorial specifications, not generated results. No new scientific propagation or rendering experiment is authorised by this manuscript.
 
 | Claim in manuscript | Retained source | Check required |
 |---|---|---|
