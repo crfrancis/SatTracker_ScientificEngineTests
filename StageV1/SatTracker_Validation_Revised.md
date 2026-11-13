@@ -52,19 +52,34 @@ Prediction is another matter. A 2025 study of **Sentinel-6A** (almost identical 
 
 ## The validation programme in numbers
 
-| Investigation | Scale of validation |
-|---|---|
-| SGP4 propagation | **33 orbital inputs**, **2,348 epochs requested**; 827 valid states in the complete-vector baseline |
-| Time (B1) | **34 UTC fixtures**: 28 accepted, six unsupported |
-| Earth orientation and frame (B2a) | **263 requests**: 248 supported, 15 unavailable |
-| Observer geometry (B2) | **2,799 requests**: 2,703 valid, 96 undefined zero-range |
-| Velocity consistency (B2b) | **318 labelled centres**: 312 valid; seven differentiation step sizes |
-| Practical pass detection (B3a) | **153 searches**: 310 complete and 14 clipped intervals; 626 crossings |
-| Final event regression (B3b) | **196 configurations**: 359 intervals and 672 crossings preserved; overlapping earlier cases |
-| Metal precision (A3b–A3c) | Complete-float versus double stress comparisons; **1,000 real satellites × four ages** for selected visual compensation tests; **16,896 real catalogue entries** in archived snapshot |
-| Metal rendering (D1–D2) | Architecture comparisons; principal **500-frame, 20-second** 10k/25 Hz offscreen paced run; 10k and 100k matched workload comparisons |
-| Presented rendering (D3) | **60-case** matrix, **9,480 draws**, **9,475** with positive presentation timestamps; simultaneous sky/globe views |
-| Visual accuracy/fallback (D4) | **1,072 jointly visible** current tracked-10° pairs; **7,392 enriched view/epoch events** in selected age-grid narrow-view fallback cohort |
+| Investigation | Principal test population | Note |
+|---|---:|:---:|
+| SGP4 propagation | 33 orbital inputs; 2,348 requested epochs | 1 |
+| Time foundation (B1) | 34 UTC test fixtures | 2 |
+| Earth orientation and frames (B2a) | 263 transformation requests | 3 |
+| Observer geometry (B2) | 2,799 geometry requests | 4 |
+| SGP4 velocity consistency (B2b) | 318 derivative centres | 5 |
+| Practical pass discovery (B3a) | 153 orbital searches | 6 |
+| Final pass regression (B3b) | 196 search configurations | 7 |
+| Metal precision (A3b–A3c) | 1,000 real catalogue objects sampled at 4 element ages | 8 |
+| Offscreen Metal rendering (D1–D2) | 500 frames in the principal paced run | 9 |
+| Presented catalogue rendering (D3) | 9,480 recorded draws | 10 |
+| Visual accuracy and fallback (D4) | 1,072 current-snapshot comparison pairs; 7,392 age-grid view/epoch events | 11 |
+
+**Notes on the populations**
+
+1. **SGP4:** The 33 inputs were evaluated at 2,348 requested epochs. Some requests intentionally exercised invalid or failed propagation states; these remain part of the validation rather than being discarded. A requested epoch is not an independent satellite.
+2. **Time:** Of 34 UTC fixtures, 28 were supported and 6 deliberately tested unsupported pre-1972 dates. The latter test the software's handling of out-of-domain inputs; they are not six incorrect time conversions.
+3. **Frames:** Of 263 requests, 248 had the necessary reference data and 15 did not. Several rotation-rate models were also tested on overlapping requests. Lack of supporting data is not a numerical-comparison failure.
+4. **Observer geometry:** Of 2,799 requests, 2,703 produced valid geometric results and 96 deliberately specified coincident observer and satellite positions, for which direction and range rate are undefined. The valid population comprises 1,440 pure-geometry cases, 1,260 integrated cases and 3 analytical anchors.
+5. **Velocity:** Of 318 labelled centres, 312 supported the principal derivative calculation and 6 produced an SGP4 error status. The **7 numerical differentiation step sizes** are a separate experimental parameter applied to centres, not seven additional centres. A high-eccentricity supplement is counted separately.
+6. **Practical pass discovery:** The 153 searches yielded 310 complete visibility intervals, 14 clipped intervals and 626 crossings. These are *results within searches*, not additional searches. Repeated sampling alignments are included; no independently confirmed SGP4 interval was missed in this bounded population.
+7. **Final event regression:** The 196 configurations yielded 359 intervals and 672 crossings. This regression includes earlier searches and mathematical controls, so its counts must not be added to B3a as if they were independent observations.
+8. **Metal precision:** The selected visual-accuracy sample used 1,000 real objects at 4 element ages. The separate archived real catalogue contained 16,896 entries; large performance fixtures also included synthetic variants. These are distinct populations, not a single combined sample.
+9. **Offscreen rendering:** The principal D2 pacing test comprised 500 frames at 25 Hz over 20 seconds with 10,000 objects. Additional D1–D2 comparisons included 100,000-object and alternative architecture workloads; 500 is not the total number of rendering experiments.
+10. **Presented rendering:** D3's 60-case matrix recorded 9,480 draws; 9,475 had positive presentation timestamps and 5 remained unverified. A missing timestamp is not automatically a failed frame or a missed deadline.
+11. **Visual accuracy/fallback:** The 1,072 jointly visible pairs belong to one current-snapshot 10° view. The 7,392 age-grid entries are deliberately enriched **view/epoch events**, not 7,392 independent satellites; they were used to compare exploratory fallback rules.
+
 
 The graphics populations have different denominators and measurement units from the scientific tests. Their frame counts, satellite/epoch pairs and fallback events are not included in the 12,707 scientific criterion-outcome ledger.
 
