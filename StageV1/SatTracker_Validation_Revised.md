@@ -14,9 +14,11 @@
 
 SatTracker predicts where an Earth-orbiting satellite will appear in the sky, when it will rise above and fall below a selected elevation, how far away it is, and how its motion changes the frequency of a received radio signal. These apparently straightforward answers require several coordinated calculations: orbit propagation, accurate treatment of time, the rotation and orientation of the Earth, the position of the observer, and the detection of events along a satellite pass.
 
-The scientific foundation examined here uses the established SGP4 orbital model, together with independently implemented calculations for time, Earth orientation, observer geometry, range rate, one-way Doppler shift and geometric pass prediction. The investigations covered the 33-input propagation regression test suite, 2,799 observer-geometry requests and a final suite of 196 pass-search configurations. In the practical satellite-pass investigation, the algorithm detected all **310 complete and 14 clipped visibility intervals** identified by an independent reference across **153 searches**, including deliberately constructed grazing intervals lasting only a few seconds. The 196-search regression preserved **359 intervals and 672 crossings** after corrections to event reporting. These are overlapping and sometimes deliberately repeated test populations, not independent satellite observations.
+The scientific foundation examined here uses the established SGP4 orbital model, together with independently implemented calculations for time, Earth orientation, observer geometry, range rate, one-way Doppler shift and geometric pass prediction. The investigations covered the 33-input propagation regression test suite, 2,799 observer-geometry requests and a final suite of 196 pass-search configurations. A separate graphics-validation programme tested GPU arithmetic precision, catalogue-rendering architectures, offscreen and presented-frame performance, and pixel-level visual agreement for real and synthetic satellite populations. In the practical satellite-pass investigation, the algorithm detected all **310 complete and 14 clipped visibility intervals** identified by an independent reference across **153 searches**, including deliberately constructed grazing intervals lasting only a few seconds. The 196-search regression preserved **359 intervals and 672 crossings** after corrections to event reporting. These are overlapping and sometimes deliberately repeated test populations, not independent satellite observations.
 
 The numerical comparisons show very close agreement in many parts of the calculation chain. For example, the largest matched classical terrestrial-frame position difference was **0.162 mm** across 248 comparisons, and the largest integrated slant-range arithmetic difference was about **30 nanometres** across 1,260 requests. These figures describe agreement between calculations using specified inputs. They are not estimates of the uncertainty in a satellite's actual orbit.
+
+The Metal studies support a CPU-authoritative scientific path with an optional approximate GPU catalogue display: in a 100,000-object presented two-view workload, median draw-work was 4.033 ms for reusable GPU compute states versus 17.336 ms for vertex-quads and 10.305 ms for the four-way CPU baseline. The visual tests found subpixel residuals in a selected current-snapshot cohort but larger errors for difficult orbits and older elements. Neither a final fallback policy nor a production renderer has been validated.
 
 The tests also revealed limitations worth understanding. Different terrestrial-frame conventions can produce metre-scale differences; SGP4's returned velocity is not always the exact derivative of its position curve; and the timing of an extremely shallow satellite pass can be numerically sensitive. One deliberately artificial, millisecond-scale visibility interval escaped the search, although no genuine SGP4 interval was missed in the bounded practical test set. Several strict numerical comparison criteria were exceeded and remain documented rather than concealed.
 
@@ -59,6 +61,12 @@ Prediction is another matter. A 2025 study of **Sentinel-6A** (almost identical 
 | Velocity consistency (B2b) | **318 labelled centres**: 312 valid; seven differentiation step sizes |
 | Practical pass detection (B3a) | **153 searches**: 310 complete and 14 clipped intervals; 626 crossings |
 | Final event regression (B3b) | **196 configurations**: 359 intervals and 672 crossings preserved; overlapping earlier cases |
+| Metal precision (A3b–A3c) | Complete-float versus double stress comparisons; **1,000 real satellites × four ages** for selected visual compensation tests; **16,896 real catalogue entries** in archived snapshot |
+| Metal rendering (D1–D2) | Architecture comparisons; principal **500-frame, 20-second** 10k/25 Hz offscreen paced run; 10k and 100k matched workload comparisons |
+| Presented rendering (D3) | **60-case** matrix, **9,480 draws**, **9,475** with positive presentation timestamps; simultaneous sky/globe views |
+| Visual accuracy/fallback (D4) | **1,072 jointly visible** current tracked-10° pairs; **7,392 enriched view/epoch events** in selected age-grid narrow-view fallback cohort |
+
+The graphics populations have different denominators and measurement units from the scientific tests. Their frame counts, satellite/epoch pairs and fallback events are not included in the 12,707 scientific criterion-outcome ledger.
 
 The counts are not additive independent tests. Invalid or unavailable cases were retained and classified explicitly.
 
@@ -302,7 +310,66 @@ Before that correction, 18 of 81 targeted maximum-time comparisons exceeded the 
 
 **[FIGURE BRIEF 13 — Shallow GEO peak: actual interval and enlarged peak from B3b, baseline/corrected/reference times and archived empirical conditioning span; not a physical uncertainty bound; V1 F14.]**
 
-## 7. What confidence should we place in the results?
+## 7. Displaying the satellite catalogue: the Metal validation programme
+
+The calculations discussed so far concern the position and apparent motion of a satellite, and the reliability of its predicted events. A tracking application must also display the rest of the orbital catalogue in its sky and globe windows. Those two requirements are related, but they do not require identical computational approaches. A satellite selected for tracking needs the authoritative scientific calculations; a much larger set of background objects must be drawn quickly and with sufficient visual fidelity to support selection and situational awareness.
+
+The proposed native SatTracker therefore investigated whether Apple's **Metal** graphics framework could calculate approximate catalogue positions on the GPU, leaving the established double-precision CPU SGP4 path responsible for scientific results. This was not merely a theoretical architecture study. The retained experiments implemented complete-branch Metal SGP4, rendered real and synthetic catalogues, measured actual presented AppKit views and compared shader pixel positions with independently calculated CPU geometry. The work is documented in Stages A3b, A3c and D1–D4, with separate numerical reviews and retained test records.
+
+### 7.1 Why a fast GPU is not automatically an accurate orbit propagator
+
+The first experiments established a critical precision limitation. Metal on the tested Apple M1 Max does not provide native double-precision arithmetic in its ordinary shader language; its supported floating-point calculations do not reproduce CPU double-precision SGP4. In Stage A3b, converting the *complete* SGP4 calculation to single precision produced position differences reaching **55.075 km** in the stress corpus. Even retaining double-precision initialisation before single-precision propagation left a maximum difference of **48.499 km** at a different stress epoch. These are worst cases in a deliberately challenging test set, not typical catalogue displacements, but they rule out treating single-precision GPU SGP4 as numerically interchangeable with the CPU reference.
+
+A synthetic arithmetic kernel demonstrated substantial GPU throughput at large batch sizes, but that kernel was **not SGP4**. Its speed-up must not be quoted as an orbital-propagation result. Stage A3c instead implemented near-Earth, deep-space and resonance branches of SGP4 for approximate *background display*, retaining CPU double precision as the authoritative reference. Three variants were tested: CPU double initialisation followed by GPU single-precision propagation; GPU single-precision initialisation and propagation; and a compensated near-Earth secular-phase calculation. The compensation was not a general double-precision replacement and did not resolve every difficult orbital regime.
+
+For a selected set of 1,000 real catalogue objects at four element ages, the compensated variant reduced the **95th-percentile wide-view pixel displacement** from approximately **0.259 to 0.0261 pixels**, and the maximum from **1.65 to 0.139 pixels**. The improvement is substantial within that test population, but the results cannot be generalised to every orbit or viewing geometry. The archived CelesTrak snapshot contained **16,896 real entries**; the larger 100,000-object workloads also included explicitly synthetic variants.
+
+**[FIGURE BRIEF 16 — Numerical precision and visual consequence]** Two linked panels. Left: show A3b full-float and double-initialised/float-propagated position-difference distributions in metres or kilometres, distinguishing ordinary from stress cases and marking the separate 55.07493 km and 48.49945 km maxima. Right: use A3c retained 1,000-real-object/four-age samples to compare uncompensated and compensated GPU pixel-displacement distributions, including p95 0.259→0.0261 px and maximum 1.65→0.1386 px. Different populations and units must not be merged. Sources: A3b/A3c results and QA; extract archived samples only.
+
+### 7.2 Which rendering architecture works best?
+
+Stages D1 and D2 compared three approaches: propagate once into reusable GPU compute buffers and render from those states; propagate inside each vertex shader; or compute positions on the CPU and upload them for drawing. A reduced-rate interpolation option was also explored. In simple offscreen point scenes, compute and vertex approaches were competitive, and a four-way CPU implementation was itself fast enough for useful tested update rates.
+
+In D2's principal **10,000-object, 25 Hz, 500-frame (20-second)** paced run, no frame missed its 40 ms deadline. The observed frame-time median, 95th percentile, 99th percentile and worst case were **1.364, 2.318, 4.618 and 8.464 ms**, respectively. For matched offscreen complete-frame work, the median times at 100,000 objects were **3.002 ms for compute**, **3.536 ms for vertex** and **10.498 ms for the four-way CPU path**. These measurements established useful capacity in the tested offscreen workload, not a guarantee of long-term desktop responsiveness.
+
+Stage D3 made the workload more representative of SatTracker: actual AppKit/MTKView drawable callbacks, six-vertex sprites, bounded labels and picking, and **simultaneous sky and globe views**. The distinction mattered. The vertex-sprite path repeated propagation for multiple sprite corners and views, while reusable compute states could be shared by different consumers. In the tested **100,000-object, 60 Hz** configuration, median draw-work times were **4.033 ms for compute**, **17.336 ms for vertex-quads** and **10.305 ms for the four-way CPU baseline**. The vertex-quads path achieved approximately **54.7 Hz** rather than the requested 60 Hz; compute and CPU achieved approximately 60 Hz in that configuration. This does not make compute universally faster: the simpler point-only vertex workload was much cheaper.
+
+The complete D3 presented matrix retained **9,480 draws**, of which **9,475 had positive presentation timestamps**; five callbacks remained unverified. GPU completion, frame occupancy, actual presentation cadence and the latency between initiating work and seeing a frame were measured separately. In one 10,000-object, 60 Hz comparison, faster compute draw-work nevertheless accompanied about **66.5 ms presentation latency**, versus **49.9 ms** for the alternative. Main-thread waiting and queueing were not fully resolved. A renderer can meet a draw-time budget yet feel less responsive.
+
+| D3 presented workload | Compute | Vertex-quads | CPU, four-way |
+|---|---:|---:|---:|
+| 10,000 objects, 60 Hz: median draw-work | 1.915 ms | 6.076 ms | 3.459 ms |
+| 100,000 objects, 60 Hz: median draw-work | 4.033 ms | 17.336 ms | 10.305 ms |
+
+**[FIGURE BRIEF 17 — What it costs to draw a catalogue]** Grouped physical-unit bar/dot chart of the D3 10k and 100k 60 Hz *presented* draw-work medians for compute, vertex-quads and CPU4, with the actual measured frame-cadence and presentation-latency observations separately annotated. A small schematic should explain reusable compute states versus per-corner repeated vertex propagation. Include the 9,480/9,475 presentation accounting, excluded pacing trials and zero-time callbacks. Source: StageD3Results, StageD3QA and retained matched workload; do not confuse D2 offscreen times with D3 presented results.
+
+### 7.3 Does the rendered catalogue appear in the right place?
+
+Performance alone is insufficient. Stage D4 compared actual Metal shader positions after projection into the displayed viewport against independent CPU double-precision geometry. This is a **pixel-level rendering comparison**, not a measurement of a satellite's true position in the sky. The investigation also distinguished errors already introduced when CPU double-precision positions are projected using single-precision display coordinates, and examined objects that one calculation considered visible but the other clipped.
+
+For the compensated GPU at the current archived catalogue epoch, the tracked 10° field at a station near 44° N contained **1,072 jointly visible comparison pairs**. At a **1,024-pixel viewport**, the 99th-percentile displacement was **0.0280 pixels**, and the maximum **0.4003 pixels**. The results became less uniform for more demanding cases: across a four-station age-grid narrow-view population, the maximum reached **2.162 pixels**; an extreme-orbit corpus case reached **40.31 pixels** at 44° N, with other camera combinations retaining larger extremes. The first number is encouraging for that particular current-snapshot cohort; the others explain why a global assertion of subpixel correctness would be unjustified.
+
+Stage D4 therefore examined candidate **selective CPU fallback** rules. One approach would always calculate the selected object on the CPU; others would also recognise deep-space or high-eccentricity regimes, element age, perigee or view visibility. At an *exploratory*, not approved, **0.5-pixel threshold**, a deliberately enriched age-grid narrow-view union cohort contained **7,392 view/epoch events**. Selection-only fallback left **401 false negatives** (events whose displacement exceeded the threshold but were not selected for fallback); a regime-based candidate had **zero in that sampled cohort**, and an age/perigee candidate had **six**. These are neither representative catalogue percentages nor proof of future classifier performance.
+
+Some visibility-only policies can miss an object clipped by the GPU but visible in the CPU reference. Moreover, the frozen fallback tests did not include the full cost of a dynamic classifier and readback path, and falling back to CPU positions does not eliminate the single-precision display-projection floor or repair stale orbital elements. No final visual threshold, classification policy or CPU/GPU interface has been approved.
+
+The D4 comparisons used a common simplified Earth-rotation convention (GMST with UTC approximating UT1, without the later native polar-motion/EOP transformation). That was suitable for isolating differences between display implementations, but it does **not** validate a future shader pipeline incorporating the newer B2a terrestrial-frame foundation. The D4 audit also rejected an original edge fixture with a duplicated camera offset; only the corrected edge evidence is admissible. Finally, measured frame-to-frame numerical jitter is not, by itself, a measurement of perceptible flicker.
+
+**[FIGURE BRIEF 18 — Pixel accuracy and fallback limits]** Use actual corrected D4 shader-versus-CPU pixel-displacement distributions, with current-snapshot and age-grid narrow-view populations on separate axes/panels. Show p99 0.0280428 px and maximum 0.400259 px for the 1,072-pair current tracked-10° sample, and 2.16178 px age-grid maximum; plot extreme cases separately to preserve 40.3103 px and larger tails. Add a compact fallback confusion/count table at the exploratory 0.5 px threshold: 7,392 events, selection-only 401 false negatives, regime-based B zero sampled false negatives, age/perigee D six. Include jointly visible versus union/clipped definitions, Float projection floor, corrected-edge provenance and unmeasured dynamic costs. Source: StageD4Results, StageD4QA and VisualFallbackPolicy; no new shader calculations.
+
+### 7.4 Reduced-rate interpolation: useful but conditional
+
+One further D1 experiment asked whether the GPU could propagate less frequently and interpolate positions between updates. In a selected accelerated scenario, using propagation at **5 Hz** for a **25 Hz** display, simple linear interpolation accumulated about **249 pixels** of tracked-10° total displacement, whereas a Hermite-style interpolation reduced it to approximately **0.242 pixels**. The result includes endpoint-propagation error and relies on correctly bracketed future states. It is not a universal bound, and the later B2b investigation established that SGP4's returned velocity cannot automatically be treated as the exact derivative of its evolving position curve. An interpolated catalogue display must not become the authority for range rate, Doppler or pass-event timing.
+
+### 7.5 What has been validated — and what remains open?
+
+The Metal work progressed from arithmetic feasibility to actual rendering architectures, offscreen pacing, presented windows, pixel-level residuals, clipping cases and fallback candidates. It involved archived real orbital entries, deliberately synthetic large catalogues, repeated epochs, multiple observer/view geometries, retained performance distributions and independent QA. These are meaningful layers of validation, not merely a demonstration that a shader compiles.
+
+The evidence supports a **CPU-authoritative scientific path with optional compensated Metal catalogue rendering** as a credible design candidate. Reusable compute states performed particularly well in the tested multi-consumer sprite-and-view workload, but an all-CPU path also remains viable. The final pixel tolerance, dynamic fallback rules, concurrency and buffer ownership, application-level input-to-photon responsiveness, and integration with the B2a Earth-orientation model all remain unselected or unvalidated. No production Swift application has yet passed an end-to-end catalogue-rendering acceptance programme.
+
+**[FIGURE BRIEF 19 — Evidence ladder for Metal rendering]** A compact diagram showing the progression A3b numerical precision → A3c compensated approximate catalogue → D1 architecture → D2 offscreen pacing → D3 presented sky/globe views → D4 visual accuracy/fallback. Give each stage its actual measured output and its explicit limitation; mark proposed production integration as unvalidated. Source: MASTER_INDEX.md, TECHNICAL_OVERVIEW.md and individual stage QA reports.
+
+## 8. What confidence should we place in the results?
 
 The validation programme provides several complementary forms of evidence. Matched implementation comparisons test whether the time, terrestrial-frame and observer calculations execute their declared mathematical conventions consistently. Cross-model comparisons show the consequences of using different conventions or approximations. The practical pass searches test whether geometrically visible intervals and events are found within a defined set of real SGP4 trajectories and constructed edge cases. None of these populations is an observation campaign establishing a single physical pointing or timing accuracy for every satellite.
 
@@ -320,15 +387,17 @@ For actual use, the suitability of a prediction also depends on the orbit-data a
 
 **[FIGURE BRIEF 15 — Confidence ladder: implementation agreement, model choice, physical prediction and observing performance separately, without combining incompatible units; V1 status matrix.]**
 
-## 8. Conclusions
+## 9. Conclusions
 
 Predicting the passage of a satellite across the sky requires considerably more than calculating its position in orbit. It involves a chain of calculations linking orbital motion, time, the orientation of the Earth and the observer's location, ultimately producing the directions, distances, velocities and event times needed for satellite tracking.
 
-SatTracker's scientific foundation has been subjected to an extensive programme of numerical validation. The investigations covered orbital conditions ranging from ordinary low-Earth orbits to geosynchronous and highly eccentric trajectories, together with deliberately constructed cases designed to expose weaknesses in the algorithms.
+SatTracker's scientific and catalogue-display foundations have been subjected to an extensive programme of numerical and graphical validation. The investigations covered orbital conditions ranging from ordinary low-Earth orbits to geosynchronous and highly eccentric trajectories, together with deliberately constructed cases designed to expose weaknesses in the algorithms.
 
 The results demonstrate very close agreement with independent calculations across the principal time, coordinate-transformation and observer-geometry tests. The practical pass-prediction investigations identified every independently confirmed visibility interval in the tested satellite trajectories, including grazing opportunities lasting only a few seconds. The report also documents specific numerical exceedances and situations in which an event time is inherently sensitive to very small changes in the calculated elevation.
 
 The investigations revealed several less obvious characteristics of satellite prediction. In particular, the velocity returned by SGP4 does not always correspond exactly to the derivative of its calculated position, and the time of maximum elevation can become poorly defined when a satellite's apparent motion is extremely slow. Understanding such behaviour helps users interpret calculated results appropriately.
+
+The Metal investigations add a complementary result: a large catalogue can be rendered rapidly in the tested workloads, but the speed and pixel accuracy depend on the chosen architecture, orbital regime, element age and viewing geometry. The proposed division between authoritative CPU science and approximate GPU background graphics is supported by experiment, not yet certified as a finished application.
 
 The resulting scientific foundation has a documented chain of calculations, reproducible numerical comparisons and explicitly characterised limitations. These are essential qualities in a tool used to predict and follow objects moving across the sky.
 
@@ -358,6 +427,8 @@ The resulting scientific foundation has a documented chain of calculations, repr
 *This section is not part of the published reader-facing report.*
 
 ### Numerical evidence to verify before typesetting
+
+For the new graphics section, cross-check A3b/A3c and D1–D4 against their stage reports and independent QA before publication. Use only D4 edge-corrected fixtures; distinguish draw-work from actual presentation latency and independent objects from repeated view/epoch events. Figures 16–19 are editorial specifications, not generated results. No new scientific propagation or rendering experiment is authorised by this manuscript.
 
 | Claim in manuscript | Retained source | Check required |
 |---|---|---|
